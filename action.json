@@ -1,0 +1,59 @@
+[
+   {
+      "eventType":"open_browser",
+      "payload":{
+         "url":"https://dl.wsei.lublin.pl/"
+      }
+   },
+   {
+      "eventType":"set_mouse_position",
+      "payload":{
+         "x":1850,
+         "y":120
+      }
+   },
+   {
+      "eventType":"press_mouse_button",
+      "payload":{
+         "button":"left"
+      }
+   },
+   {
+      "eventType":"set_mouse_position",
+      "payload":{
+         "x":900,
+         "y":450
+      }
+   },
+   {
+      "eventType":"press_mouse_button",
+      "payload":{
+         "button":"left"
+      }
+   },
+  {
+      "eventType":"type_word",
+      "payload":{
+         "word":"9Perla1719@"
+      }
+   },
+   {
+      "eventType":"set_mouse_position",
+      "payload":{
+         "x":900,
+         "y":520
+   }
+   },
+   {
+      "eventType":"press_mouse_button",
+      "payload":{
+         "button":"left"
+      }
+   }
+
+]
+
+
+
+
+
