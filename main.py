@@ -1,6 +1,6 @@
 import webbrowser
 from pynput.mouse import Controller as mconn
-from pynput.mouse import Button
+from pynput.mouse import Button, Listener, Events
 from pynput.keyboard import Controller as kconn
 from pynput.keyboard import Key
 import json
@@ -9,7 +9,7 @@ import time
 mouse = mconn()
 keyboard = kconn()
 
-
+mapper = {'Move' : 'set_mouse_position', 'Click' : 'press_mouse_button' }
 
 class Automat:
     def __init__(self, command_file, delay):
@@ -19,6 +19,8 @@ class Automat:
         self._keyboard = kconn()
         self._mouse_button = Button
         self._keyboard_button = Key
+        self._mouse_listener = Events
+        #self._keyboard_listener = Events
 
     @staticmethod
     def _parse_command_file(command_file):
@@ -43,25 +45,26 @@ class Automat:
     def keyboard(self):
         return self._keyboard
 
-    def press_mouse_button(self, button, release=True):
+    def press_mouse_button(self, button, release=True, **kwargs):
         if release:
             self._mouse.press(getattr(self._mouse_button, button))
             self._mouse.release(getattr(self._mouse_button, button))
         else:
             self._mouse.press(getattr(self._mouse_button, button))
 
-    def press_keyboard_button(self, button, release=True):
+    def press_keyboard_button(self, button, release=True, **kwargs):
         if release:
             self._keyboard.press(getattr(self._keyboard_button, button, button))
             self._keyboard.release(getattr(self._keyboard_button, button, button))
         else:
             self._keyboard.press(getattr(self._keyboard_button, button, button))
 
-    def set_mouse_position(self, x, y):
+    def set_mouse_position(self, x, y, **kwargs):
         self._mouse.position = (x, y)
 
-    def type_word(self, word):
+    def type_word(self, word, **kwargs):
         self._keyboard.type(word)
+
 
     def run_process(self):
         for task in self.command_list:
@@ -69,49 +72,25 @@ class Automat:
             var(**task["payload"])
             time.sleep(self.delay)
 
+    def record_process(self):
+        tasks = []
+        with self._mouse_listener() as events :
+            for event in events:
+                if getattr(event, 'button', 0) == self._mouse_button.right:
+                    break
+                else:
+                    method = str(event)[:str(event).index('(')]
+                    parameters = str(event)[str(event).index('('):].replace('=', ':').replace('(', '').replace(')', '').strip()
+                    parameters_list = parameters.split(', ')
+                    parameters_dict = {item[:item.index(':')] : item[item.index(':') + 1 :] for item in parameters_list }
+                    task = {"eventType" : mapper[method],
+                             "payload" : parameters_dict}
+                    tasks.append(task)
 
-automat = Automat('./action.json', 2)
+        print(tasks)
+        with open('./data.json', 'w', encoding='utf-8') as f:
+            json.dump(tasks , f, ensure_ascii=False, indent=4)
+
+automat = Automat('./data.json', 0.005)
 automat.run_process()
-# Read pointer position
-# print('The current pointer position is {0}'.format(
-#     mouse.position))
-#
-# # Set pointer position
-# open_browser()
-# mouse.position = (1850, 120)
-# time.sleep(10)
-# mouse.press(Button.left)
-# mouse.release(Button.left)
-# time.sleep(2)
-# mouse.position = (900, 400)
-# mouse.press(Button.left)
-# mouse.release(Button.left)
-# mouse.press(Button.left)
-# mouse.press(Button.left)
-# keyboard.press(Key.backspace)
-# keyboard.release(Key.backspace)
-# keyboard.type('40173')
-# mouse.position = (900, 450)
-# mouse.press(Button.left)
-# mouse.release(Button.left)
-# keyboard.type('9Perla1719@')
-# mouse.position = (900, 520)
-# mouse.press(Button.left)
-# mouse.release(Button.left)
-
-# # print('Now we have moved it to {0}'.format(
-# #     mouse.position))
-#
-# # Move pointer relative to current position
-# mouse.move(600, -5)
-#
-# # Press and release
-# mouse.press(Button.left)
-# mouse.release(Button.left)
-#
-# # Double click; this is different from pressing and releasing
-# # twice on macOS
-# mouse.click(Button.left, 2)
-#
-# # Scroll two steps down
-# mouse.scroll(0, 2)
+# automat.record_process()
