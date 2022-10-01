@@ -9,7 +9,7 @@ import time
 mouse = mconn()
 keyboard = kconn()
 
-mapper = {'Move' : 'set_mouse_position', 'Click' : 'press_mouse_button' }
+mapper = {'Move' : 'set_mouse_position', 'Click' : 'press_mouse_button', 'Button.left' : 'left', 'Button.right' : 'ri' }
 
 class Automat:
     def __init__(self, command_file, delay):
@@ -47,6 +47,7 @@ class Automat:
 
     def press_mouse_button(self, button, release=True, **kwargs):
         if release:
+            print(kwargs)
             self._mouse.press(getattr(self._mouse_button, button))
             self._mouse.release(getattr(self._mouse_button, button))
         else:
@@ -81,7 +82,7 @@ class Automat:
                 else:
                     method = str(event)[:str(event).index('(')]
                     parameters = str(event)[str(event).index('('):].replace('=', ':').replace('(', '').replace(')', '').strip()
-                    parameters_list = parameters.split(', ')
+                    parameters_list = parameters.replace('Button.', '').replace('Key.', '').split(', ')
                     parameters_dict = {item[:item.index(':')] : item[item.index(':') + 1 :] for item in parameters_list }
                     task = {"eventType" : mapper[method],
                              "payload" : parameters_dict}
@@ -91,6 +92,6 @@ class Automat:
         with open('./data.json', 'w', encoding='utf-8') as f:
             json.dump(tasks , f, ensure_ascii=False, indent=4)
 
-automat = Automat('./data.json', 0.005)
+automat = Automat('./data.json', 0.001)
 automat.run_process()
 # automat.record_process()
