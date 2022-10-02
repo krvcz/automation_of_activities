@@ -1,26 +1,75 @@
 import webbrowser
 from pynput.mouse import Controller as mconn
-from pynput.mouse import Button, Listener, Events
+from pynput.mouse import Button, Events
+from pynput.mouse import Events as MouseEvents
 from pynput.keyboard import Controller as kconn
 from pynput.keyboard import Key
+from pynput.keyboard import Events as KeyboardEvents
+from pynput.mouse import Listener as MouseListener
+from pynput.keyboard import Listener as KeyboardListener
 import json
 import time
 
 mouse = mconn()
 keyboard = kconn()
 
-mapper = {'Move' : 'set_mouse_position', 'Click' : 'press_mouse_button', 'Button.left' : 'left', 'Button.right' : 'ri' }
+mapper = {'Move' : 'set_mouse_position', 'Click' : 'press_mouse_button'}
 
 class Automat:
-    def __init__(self, command_file, delay):
-        self.command_list = self._parse_command_file(command_file)
+    def __init__(self, delay):
+        self.command_list = None
         self.delay = delay
         self._mouse = mconn()
         self._keyboard = kconn()
         self._mouse_button = Button
         self._keyboard_button = Key
-        self._mouse_listener = Events
-        #self._keyboard_listener = Events
+        self.keyboard_listener = KeyboardListener(on_press=self.on_press)
+        self.mouse_listener = MouseListener(on_move=self.on_move, on_click=self.on_click, on_scroll=self.on_scroll)
+
+
+    def on_press(self, key):
+        if key == self._keyboard_button.esc:
+            self.keyboard_listener.stop()
+            self.mouse_listener.stop()
+        else:
+            self.command_list.append({"eventType": 'press_keyboard_button',
+                                        "payload": {
+                                            'button': str(key).replace('Key.', '').replace("'", "")
+                                        }
+                                        })
+
+    def on_release(self, key):
+        self.command_list.append({"eventType": 'press_keyboard_button',
+                                  "payload": {
+                                      'button': str(key).replace('Key.', '').replace("'", "")
+                                  }
+                                  })
+
+
+    def on_move(self, x, y):
+        self.command_list.append({"eventType": 'set_mouse_position',
+               "payload": {
+                   'x': x,
+                   'y' : y
+               }
+               })
+
+
+    def on_click(self, x, y, button, pressed):
+        self.command_list.append({"eventType": 'press_mouse_button',
+               "payload": {
+                   'button': str(button).replace('Button.', '')
+               }
+               })
+
+    def on_scroll(self, x, y, dx, dy):
+        self.command_list.append({"eventType": 'scroll_page',
+                                  "payload": {
+                                      'dx': dx,
+                                      'dy' : dy
+                                  }
+                                  })
+
 
     @staticmethod
     def _parse_command_file(command_file):
@@ -29,7 +78,7 @@ class Automat:
             if isinstance(data, (dict, list)):
                 pass
             else:
-                raise TypeError('Niewłaściwy format pliku')
+                raise TypeError('Invalid JSON format')
         return data
 
     @staticmethod
@@ -47,7 +96,6 @@ class Automat:
 
     def press_mouse_button(self, button, release=True, **kwargs):
         if release:
-            print(kwargs)
             self._mouse.press(getattr(self._mouse_button, button))
             self._mouse.release(getattr(self._mouse_button, button))
         else:
@@ -66,32 +114,36 @@ class Automat:
     def type_word(self, word, **kwargs):
         self._keyboard.type(word)
 
+    def scroll_page(self, dx, dy, **kwargs):
+        self._mouse.scroll(dx, dy)
 
-    def run_process(self):
+
+    def run_process(self, command_file = None):
+        if command_file is None and self.command_list is None:
+            raise Exception('Missing JSON file. \n Upload JSON file or record macro')
+        elif command_file is not None:
+            self.command_list = self._parse_command_file(command_file)
         for task in self.command_list:
             var = getattr(self, task["eventType"])
             var(**task["payload"])
             time.sleep(self.delay)
 
     def record_process(self):
-        tasks = []
-        with self._mouse_listener() as events :
-            for event in events:
-                if getattr(event, 'button', 0) == self._mouse_button.right:
-                    break
-                else:
-                    method = str(event)[:str(event).index('(')]
-                    parameters = str(event)[str(event).index('('):].replace('=', ':').replace('(', '').replace(')', '').strip()
-                    parameters_list = parameters.replace('Button.', '').replace('Key.', '').split(', ')
-                    parameters_dict = {item[:item.index(':')] : item[item.index(':') + 1 :] for item in parameters_list }
-                    task = {"eventType" : mapper[method],
-                             "payload" : parameters_dict}
-                    tasks.append(task)
+        if self.command_list is None:
+            self.command_list = []
 
-        print(tasks)
-        with open('./data.json', 'w', encoding='utf-8') as f:
-            json.dump(tasks , f, ensure_ascii=False, indent=4)
+        self.keyboard_listener.start()
+        self.mouse_listener.start()
+        self.keyboard_listener.join()
+        self.mouse_listener.join()
 
-automat = Automat('./data.json', 0.001)
-automat.run_process()
-# automat.record_process()
+
+    def save_recorded_process(self):
+        with open('./data.json', 'w', encoding='utf-8') as file:
+            json.dump(self.command_list , file, ensure_ascii=False, indent=4)
+
+
+if __name__ == '__main__':
+    automat = Automat(delay = 0.0000001)
+    automat.record_process()
+    automat.run_process()
